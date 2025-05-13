@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat de Voz</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    .message {
+      margin-bottom: 10px;
+    }
+
+    .user {
+      text-align: right;
+      color: #007bff;
+    }
+
+    .bot {
+      text-align: left;
+      color: #28a745;
+    }
+
+    form {
+      display: flex;
+      border-top: 1px solid #ddd;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      background: #007bff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .audio-button {
+      background: #28a745;
+      margin-left: 4px;
+    }
+
+    .audio-button.recording {
+      background: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div id="messages" class="chat-messages">
+      <!-- Mensajes dinámicos -->
+    </div>
+    <form id="chat-form">
+      <input type="text" id="user-input" placeholder="Escribe un mensaje..." autocomplete="off" required />
+      <button type="submit">Enviar</button>
+      <button type="button" id="record-btn" class="audio-button">🎤</button>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('user-input');
+    const messagesDiv = document.getElementById('messages');
+    const recordBtn = document.getElementById('record-btn');
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userMessage = input.value;
+      appendMessage(userMessage, 'user');
+      input.value = '';
+
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
+      });
+
+      const data = await response.json();
+      appendMessage(data.reply, 'bot');
+    });
+
+    function appendMessage(text, sender) {
+      const msg = document.createElement('div');
+      msg.classList.add('message', sender);
+      msg.textContent = text;
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    recordBtn.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        recordBtn.classList.remove('recording');
+        recordBtn.textContent = '🎤';
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'grabacion.webm');
+
+        const response = await fetch('/audio', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+		appendMessage(data.reply, 'user');
+		appendMessage(data.respuesta, 'bot')
+
+		if (data.audio) {
+			const audio = new Audio(data.audio);
+			audio.play();
+		}
+
+      };
+
+      mediaRecorder.start();
+      recordBtn.classList.add('recording');
+      recordBtn.textContent = '⏹️';
+    });
+  </script>
+</body>
+</html>
