@@ -17,11 +17,12 @@ Este proyecto es un asistente conversacional que permite al usuario interactuar 
 - Flask
 - `requests`, `gtts` (si se usa alternativa), `dotenv`, etc.
 
-# Tokens
+## Tokens
 
 Para instalar crea un archivo .env y coloca token de huggin face y de eleven labs usando las siguientes variables:
 - ELEVEN_API_KEY=tu_token_de_elevenlabs.
 - HF_TOKEN=tu_token_de_huggin_face.
+---
 Instalar dependencias:
 ```bash
 pip install -r requirements.txt
